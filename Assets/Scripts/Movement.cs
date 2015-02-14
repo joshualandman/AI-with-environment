@@ -9,6 +9,12 @@ public enum MovementState{
 
 public class Movement : MonoBehaviour {
 
+    public Vector3 velocity;
+    public Vector3 acceleration;
+    public Transform target;
+    public float maxSpeed;
+    public float closeDistance;
+
 	private MovementState myState;
 	public MovementState MyState { get { return myState;}}
 
@@ -18,12 +24,19 @@ public class Movement : MonoBehaviour {
 	void Start () {
 		myState = MovementState.Wander;
 		myTarget = null;
-	
+        acceleration = new Vector3(0, 0);
+        velocity = new Vector3(.12f * transform.localScale.x, 0, 0);
 	}
 	
 	// Update is called once per frame
 	void Update () {
-		ChangeState (MovementState.Seek);
+
+        velocity += acceleration;
+        transform.position += velocity;
+        Wander();
+        //Seek(target);
+        //Arrival(target);
+		//ChangeState (MovementState.Seek);
 	}
 
 	/// <summary>
@@ -42,7 +55,36 @@ public class Movement : MonoBehaviour {
 		}
 
 		this.myTarget = myTarget;
-
-
 	}
+
+    public void Seek(Transform myTarget)
+    {
+        Vector3 desired = Vector3.Normalize(myTarget.transform.position - transform.position);
+        Vector3 steer = desired - velocity;
+        velocity += steer;
+    }
+
+    public void Arrival(Transform myTarget)
+    {
+        Vector3 desiredVelocity = myTarget.transform.position - transform.position;
+        float d = desiredVelocity.magnitude;
+
+        desiredVelocity = Vector3.ClampMagnitude(desiredVelocity, maxSpeed);
+        Vector3 steer = desiredVelocity - velocity;
+        velocity += steer;
+
+        if (d <= (closeDistance * 2) && d >= (closeDistance + 1))
+        {
+            desiredVelocity = Vector3.ClampMagnitude(desiredVelocity, .5f);
+        }
+        else if (d <= closeDistance)
+        {
+            velocity = new Vector3(0,0,0);
+        }
+    }
+
+    public void Wander()
+    {        
+        
+    }
 }
