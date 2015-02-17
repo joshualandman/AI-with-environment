@@ -11,9 +11,18 @@ public class Movement : MonoBehaviour {
 
     public Vector3 velocity;
     public Vector3 acceleration;
+	public Vector3 forces;
+	public float maxForce;
     public Transform target;
     public float maxSpeed;
     public float closeDistance;
+
+    public float wanderWt;
+
+    public float wanderAng = 0.0f;
+    public float wanderMaxAng = 6.0f;
+    public float wanderRad = 1.0f;
+    public float wanderDist = 15.0f;
 
 	private MovementState myState;
 	public MovementState MyState { get { return myState;}}
@@ -31,7 +40,11 @@ public class Movement : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
 
+		acceleration = calculateSteeringForces();
+
         velocity += acceleration;
+        Vector3.ClampMagnitude(velocity, maxSpeed);
+		
         transform.position += velocity;
         Wander();
         //Seek(target);
@@ -57,11 +70,13 @@ public class Movement : MonoBehaviour {
 		this.myTarget = myTarget;
 	}
 
-    public void Seek(Transform myTarget)
+    public Vector3 Seek(Vector3 myTarget)
     {
-        Vector3 desired = Vector3.Normalize(myTarget.transform.position - transform.position);
+        Vector3 desired = Vector3.Normalize(myTarget - transform.position);
         Vector3 steer = desired - velocity;
         velocity += steer;
+
+        return
     }
 
     public void Arrival(Transform myTarget)
@@ -83,8 +98,42 @@ public class Movement : MonoBehaviour {
         }
     }
 
-    public void Wander()
+    public Vector3 Wander()
     {        
+        //float velX = Mathf.PerlinNoise(Time.time, 0) - .5f;
+        //float velY = Mathf.PerlinNoise(0, Time.time) - .5f;
+
+        //return new Vector3(velX, velY, 0);
+
+        wanderAng += Random.Range(-wanderRad, wanderRad);
+
+        if (wanderAng > wanderMaxAng)
+        {
+            wanderAng = wanderMaxAng;
+        }
+
+        if (wanderAng < -wanderMaxAng)
+        {
+            wanderAng = -wanderMaxAng;
+        }
         
+        Quaternion rotate = Quaternion.Euler(0, 0, wanderAng);
+        Vector3 direction = rotate * this.transform.forward;
+        direction = direction.normalized * wanderRad;
+
+        Vector3 wanderTo = this.transform.position + this.transform.forward * wanderDist + direction;
+
+        return Seek(wanderTo);
     }
+
+	public Vector3 calculateSteeringForces()
+	{
+		forces = Vector3.zero;
+
+        forces += Wander() * wanderWt;
+
+        forces.z = 0;
+        return forces;
+	}
+
 }
