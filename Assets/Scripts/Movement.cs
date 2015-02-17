@@ -12,12 +12,16 @@ public class Movement : MonoBehaviour {
     public Vector3 velocity;
     public Vector3 acceleration;
 	public Vector3 forces;
-	public float maxForce;
+	public float maxForce = 3.0f;
     public Transform target;
-    public float maxSpeed;
+    public float mass = 1.0f;
+    public float maxSpeed = 6.0f;
     public float closeDistance;
 
     public float wanderWt;
+    public float seekWt = 0.0f;
+    public float arrivalWt = 0.0f;
+    public float fleeWt = 0.0f;
 
     public float wanderAng = 0.0f;
     public float wanderMaxAng = 6.0f;
@@ -36,17 +40,23 @@ public class Movement : MonoBehaviour {
         acceleration = new Vector3(0, 0);
         velocity = new Vector3(.12f * transform.localScale.x, 0, 0);
 	}
-	
+
 	// Update is called once per frame
 	void Update () {
 
 		acceleration = calculateSteeringForces();
 
-        velocity += acceleration;
-        Vector3.ClampMagnitude(velocity, maxSpeed);
-		
+        velocity += acceleration * Time.deltaTime;
+        velocity.z = 0;
+        velocity = Vector3.ClampMagnitude(velocity, maxSpeed);
+
+        if (velocity != Vector3.zero)
+            transform.forward = velocity.normalized;
+
         transform.position += velocity;
-        Wander();
+        acceleration = Vector3.zero;
+
+        //Wander();
         //Seek(target);
         //Arrival(target);
 		//ChangeState (MovementState.Seek);
@@ -73,10 +83,10 @@ public class Movement : MonoBehaviour {
     public Vector3 Seek(Vector3 myTarget)
     {
         Vector3 desired = Vector3.Normalize(myTarget - transform.position);
+        desired = Vector3.ClampMagnitude(desired, maxSpeed);
         Vector3 steer = desired - velocity;
-        velocity += steer;
-
-        return
+        steer.z = 0;
+        return steer;
     }
 
     public void Arrival(Transform myTarget)
@@ -126,14 +136,71 @@ public class Movement : MonoBehaviour {
         return Seek(wanderTo);
     }
 
+    public Vector3 Flee(Vector3 myTarget)
+    {
+        Vector3 desired = Vector3.Normalize(myTarget - transform.position);
+        desired = Vector3.ClampMagnitude(desired, maxSpeed);
+        Vector3 steer = desired - velocity;
+        steer.z = 0;
+        return -steer;
+    }
+
 	public Vector3 calculateSteeringForces()
 	{
 		forces = Vector3.zero;
 
-        forces += Wander() * wanderWt;
+        if (wanderWt != 0)
+            forces += wanderWt * Wander();
+        if (seekWt != 0)
+            forces += seekWt * Seek(target.transform.position);
+        if (arrivalWt != 0)
+            Arrival(target);
+        if (fleeWt != 0)
+            forces += fleeWt * Flee(target.transform.position);
 
         forces.z = 0;
         return forces;
 	}
+
+    protected void ApplyForce(Vector3 steeringForce)
+    {
+        acceleration += steeringForce / mass;
+    }
+
+    void OnGUI()
+    {
+        if(GUI.Button( new Rect(10, 10, 100, 20), new GUIContent("Wander")))
+        {
+            wanderWt = 1.0f;
+            seekWt = 0.0f;
+            arrivalWt = 0.0f;
+            fleeWt = 0.0f;
+            Debug.Log("WANDER");
+        }
+        if (GUI.Button(new Rect(10, 35, 100, 20), new GUIContent("Seek")))
+        {
+            wanderWt = 0.0f;
+            seekWt = 1.0f;
+            arrivalWt = 0.0f;
+            fleeWt = 0.0f;
+            Debug.Log("Seek");
+        }
+        if (GUI.Button(new Rect(10, 60, 100, 20), new GUIContent("Arrival")))
+        {
+            wanderWt = 0.0f;
+            seekWt = 0.0f;
+            arrivalWt = 1.0f;
+            fleeWt = 0.0f;
+            Debug.Log("Arrival");
+        }
+        if (GUI.Button(new Rect(10, 85, 100, 20), new GUIContent("Flee")))
+        {
+            wanderWt = 0.0f;
+            seekWt = 0.0f;
+            arrivalWt = 0.0f;
+            fleeWt = 1.0f;
+            Debug.Log("Flee");
+        }
+    }
 
 }
