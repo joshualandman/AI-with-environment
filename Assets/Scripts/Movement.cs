@@ -9,15 +9,21 @@ public enum MovementState{
 
 public class Movement : MonoBehaviour {
 
+    //attributes
+    public Transform target;
+
+    //movement vectors
     public Vector3 velocity;
     public Vector3 acceleration;
 	public Vector3 forces;
-	public float maxForce = 3.0f;
-    public Transform target;
+	
+    //math forces
+    public float maxForce = 3.0f;
     public float mass = 1.0f;
     public float maxSpeed = 6.0f;
     public float closeDistance;
-
+    
+    //weights
     public float wanderWt;
     public float seekWt = 0.0f;
     public float arrivalWt = 0.0f;
@@ -29,9 +35,11 @@ public class Movement : MonoBehaviour {
     public float wanderDist = 4.0f;
 
 	private MovementState myState;
+    private Transform myTarget;
+
 	public MovementState MyState { get { return myState;}}
 
-	private Transform myTarget;
+	
 
 	// Use this for initialization
 	void Start () {
@@ -42,7 +50,12 @@ public class Movement : MonoBehaviour {
 	}
 
 	// Update is called once per frame
-	void Update () {
+	/// <summary>
+	/// Update acceleration based off of forces and then add that to the velocity
+    /// then add velocity to position for mvoement
+    /// reset acceleration at end
+	/// </summary>
+    void Update () {
 
 		acceleration = calculateSteeringForces();
 
@@ -55,11 +68,6 @@ public class Movement : MonoBehaviour {
 
         transform.position += velocity;
         acceleration = Vector3.zero;
-
-        //Wander();
-        //Seek(target);
-        //Arrival(target);
-		//ChangeState (MovementState.Seek);
 	}
 
 	/// <summary>
@@ -80,6 +88,13 @@ public class Movement : MonoBehaviour {
 		this.myTarget = myTarget;
 	}
 
+    /// <summary>
+    /// Create and normalise a desired vector
+    /// create a steer vector by subtracting the velocity from the desired
+    /// return the desire vector
+    /// </summary>
+    /// <param name="myTarget"> vector position of target </param>
+    /// <returns></returns>
     public Vector3 Seek(Vector3 myTarget)
     {
         Vector3 desired = Vector3.Normalize(myTarget - transform.position);
@@ -89,6 +104,15 @@ public class Movement : MonoBehaviour {
         return steer;
     }
 
+    /// <summary>
+    /// calculate displacesment of target and current, retrieve the madnitude for distance to slow down
+    /// create a desired vector by normalizing the distance and multiplying by maxspeed
+    /// if you are within a lerp range of distance+1 and distance *2, slow down
+    /// if you are less then or equal to the set close distance, stop moving
+    /// return desired vector - velocity
+    /// </summary>
+    /// <param name="myTarget"> vector position of target</param>
+    /// <returns></returns>
     public Vector3 Arrival(Transform myTarget)
     {
         Vector3 distance = myTarget.transform.position - transform.position;
@@ -112,13 +136,18 @@ public class Movement : MonoBehaviour {
         return steer;
     }
 
+    /// <summary>
+    /// set wander angle to a range between -radius and positive wonder radius
+    /// if the angle is larget than the max, set to max, if smaller than the min, set to min
+    /// create a quarternion based off the wander angle
+    /// create a direction vector based off the quarternion times the forward
+    /// multiply the normalized direction vector by the radius
+    /// set a vector to a position that is the current position + the forward * the distance + the direction
+    /// return a seek to the vector position
+    /// </summary>
+    /// <returns></returns>
     public Vector3 Wander()
     {        
-        //float velX = Mathf.PerlinNoise(Time.time, 0) - .5f;
-        //float velY = Mathf.PerlinNoise(0, Time.time) - .5f;
-
-        //return new Vector3(velX, velY, 0);
-
         wanderAng += Random.Range(-wanderRad, wanderRad);
 
         if (wanderAng > wanderMaxAng)
@@ -140,15 +169,22 @@ public class Movement : MonoBehaviour {
         return Seek(wanderTo);
     }
 
+    /// <summary>
+    /// return -seek
+    /// </summary>
+    /// <param name="myTarget"></param>
+    /// <returns></returns>
     public Vector3 Flee(Vector3 myTarget)
     {
-        Vector3 desired = Vector3.Normalize(myTarget - transform.position);
-        desired *= maxSpeed;
-        Vector3 steer = desired - velocity;
-        steer.z = 0;
-        return -steer;
+        return -1 * Seek(myTarget);
     }
 
+    /// <summary>
+    /// set forces to zero
+    /// based off of the weight of movement choices
+    /// set forces to the weight and call the required movement function
+    /// </summary>
+    /// <returns></returns>
 	public Vector3 calculateSteeringForces()
 	{
 		forces = Vector3.zero;
@@ -166,11 +202,20 @@ public class Movement : MonoBehaviour {
         return forces;
 	}
 
+    /// <summary>
+    /// take in a vector 3 for movement
+    /// add the vector/mass to the acceleration
+    /// </summary>
+    /// <param name="steeringForce"></param>
     protected void ApplyForce(Vector3 steeringForce)
     {
         acceleration += steeringForce / mass;
     }
 
+    /// <summary>
+    /// Create a GUI system that displays the movement abilities
+    /// when the button is clicked set the weights correctly
+    /// </summary>
     void OnGUI()
     {
         if(GUI.Button( new Rect(10, 10, 100, 20), new GUIContent("Wander")))
