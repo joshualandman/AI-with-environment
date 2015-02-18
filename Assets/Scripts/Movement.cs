@@ -25,8 +25,8 @@ public class Movement : MonoBehaviour {
 
     public float wanderAng = 0.0f;
     public float wanderMaxAng = 6.0f;
-    public float wanderRad = 1.0f;
-    public float wanderDist = 15.0f;
+    public float wanderRad = 100.0f;
+    public float wanderDist = 4.0f;
 
 	private MovementState myState;
 	public MovementState MyState { get { return myState;}}
@@ -83,29 +83,33 @@ public class Movement : MonoBehaviour {
     public Vector3 Seek(Vector3 myTarget)
     {
         Vector3 desired = Vector3.Normalize(myTarget - transform.position);
-        desired = Vector3.ClampMagnitude(desired, maxSpeed);
+        desired *= maxSpeed;
         Vector3 steer = desired - velocity;
         steer.z = 0;
         return steer;
     }
 
-    public void Arrival(Transform myTarget)
+    public Vector3 Arrival(Transform myTarget)
     {
-        Vector3 desiredVelocity = myTarget.transform.position - transform.position;
-        float d = desiredVelocity.magnitude;
+        Vector3 distance = myTarget.transform.position - transform.position;
+        float d = distance.magnitude;
 
-        desiredVelocity = Vector3.ClampMagnitude(desiredVelocity, maxSpeed);
-        Vector3 steer = desiredVelocity - velocity;
-        velocity += steer;
+        Vector3 desiredVelocity = distance.normalized;
+        desiredVelocity *= maxSpeed;
 
         if (d <= (closeDistance * 2) && d >= (closeDistance + 1))
         {
-            desiredVelocity = Vector3.ClampMagnitude(desiredVelocity, .5f);
+            desiredVelocity *= Mathf.InverseLerp(0, closeDistance * 2, d);
         }
         else if (d <= closeDistance)
         {
-            velocity = new Vector3(0,0,0);
+            desiredVelocity = Vector3.zero;
         }
+
+        
+        Vector3 steer = desiredVelocity - velocity;
+        steer.z = 0;
+        return steer;
     }
 
     public Vector3 Wander()
@@ -139,7 +143,7 @@ public class Movement : MonoBehaviour {
     public Vector3 Flee(Vector3 myTarget)
     {
         Vector3 desired = Vector3.Normalize(myTarget - transform.position);
-        desired = Vector3.ClampMagnitude(desired, maxSpeed);
+        desired *= maxSpeed;
         Vector3 steer = desired - velocity;
         steer.z = 0;
         return -steer;
@@ -154,7 +158,7 @@ public class Movement : MonoBehaviour {
         if (seekWt != 0)
             forces += seekWt * Seek(target.transform.position);
         if (arrivalWt != 0)
-            Arrival(target);
+            forces += arrivalWt * Arrival(target);
         if (fleeWt != 0)
             forces += fleeWt * Flee(target.transform.position);
 
@@ -171,7 +175,7 @@ public class Movement : MonoBehaviour {
     {
         if(GUI.Button( new Rect(10, 10, 100, 20), new GUIContent("Wander")))
         {
-            wanderWt = 1.0f;
+            wanderWt = 100.0f;
             seekWt = 0.0f;
             arrivalWt = 0.0f;
             fleeWt = 0.0f;
@@ -180,7 +184,7 @@ public class Movement : MonoBehaviour {
         if (GUI.Button(new Rect(10, 35, 100, 20), new GUIContent("Seek")))
         {
             wanderWt = 0.0f;
-            seekWt = 1.0f;
+            seekWt = 10.0f;
             arrivalWt = 0.0f;
             fleeWt = 0.0f;
             Debug.Log("Seek");
@@ -189,7 +193,7 @@ public class Movement : MonoBehaviour {
         {
             wanderWt = 0.0f;
             seekWt = 0.0f;
-            arrivalWt = 1.0f;
+            arrivalWt = 10.0f;
             fleeWt = 0.0f;
             Debug.Log("Arrival");
         }
@@ -198,7 +202,7 @@ public class Movement : MonoBehaviour {
             wanderWt = 0.0f;
             seekWt = 0.0f;
             arrivalWt = 0.0f;
-            fleeWt = 1.0f;
+            fleeWt = 10.0f;
             Debug.Log("Flee");
         }
     }
