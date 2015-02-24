@@ -9,6 +9,8 @@ public enum MovementState{
 
 public class Movement : MonoBehaviour {
 
+    NavMeshAgent agent;
+
     //attributes
     public Transform target;
 
@@ -43,6 +45,7 @@ public class Movement : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
+        agent = GetComponent<NavMeshAgent>();
 		myState = MovementState.Wander;
 		myTarget = null;
         acceleration = new Vector3(0, 0);
@@ -56,12 +59,13 @@ public class Movement : MonoBehaviour {
     /// reset acceleration at end
 	/// </summary>
     void Update () {
-
 		acceleration = calculateSteeringForces();
 
         velocity += acceleration * Time.deltaTime;
         velocity.z = 0;
         velocity = Vector3.ClampMagnitude(velocity, maxSpeed);
+
+        agent.SetDestination(GameObject.Find("Cylinder").transform.position);
 
         if (velocity != Vector3.zero)
             transform.forward = velocity.normalized;
