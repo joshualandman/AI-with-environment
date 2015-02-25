@@ -48,7 +48,7 @@ public class Movement : MonoBehaviour {
         agent = GetComponent<NavMeshAgent>();
 		myState = MovementState.Wander;
 		myTarget = null;
-        acceleration = new Vector3(0, 0);
+        acceleration = new Vector3(0,0);
         velocity = new Vector3(.12f * transform.localScale.x, 0, 0);
 	}
 
@@ -61,11 +61,11 @@ public class Movement : MonoBehaviour {
     void Update () {
 		acceleration = calculateSteeringForces();
 
-        velocity += acceleration * Time.deltaTime;
-        velocity.z = 0;
-        velocity = Vector3.ClampMagnitude(velocity, maxSpeed);
+        calculateSteeringForces();
 
-        agent.SetDestination(GameObject.Find("Cylinder").transform.position);
+        velocity += acceleration * Time.deltaTime;
+        //agent.velocity.y = 0;
+        velocity = Vector3.ClampMagnitude(agent.velocity, maxSpeed);
 
         if (velocity != Vector3.zero)
             transform.forward = velocity.normalized;
@@ -99,13 +99,14 @@ public class Movement : MonoBehaviour {
     /// </summary>
     /// <param name="myTarget"> vector position of target </param>
     /// <returns></returns>
-    public Vector3 Seek(Vector3 myTarget)
+    public void Seek(Vector3 myTarget)
     {
-        Vector3 desired = Vector3.Normalize(myTarget - transform.position);
+        /*Vector3 desired = Vector3.Normalize(myTarget - agent.transform.position);
         desired *= maxSpeed;
         Vector3 steer = desired - velocity;
         steer.z = 0;
-        return steer;
+        return steer;*/
+        agent.SetDestination(myTarget);
     }
 
     /// <summary>
@@ -117,9 +118,10 @@ public class Movement : MonoBehaviour {
     /// </summary>
     /// <param name="myTarget"> vector position of target</param>
     /// <returns></returns>
-    public Vector3 Arrival(Transform myTarget)
+    public void Arrival(Transform myTarget)
     {
-        Vector3 distance = myTarget.transform.position - transform.position;
+        agent.SetDestination(myTarget.position);
+        Vector3 distance = myTarget.transform.position - agent.transform.position;
         float d = distance.magnitude;
 
         Vector3 desiredVelocity = distance.normalized;
@@ -127,17 +129,17 @@ public class Movement : MonoBehaviour {
 
         if (d <= (closeDistance * 2) && d >= (closeDistance + 1))
         {
-            desiredVelocity *= Mathf.InverseLerp(0, closeDistance * 2, d);
+            agent.speed *= Mathf.InverseLerp(0, closeDistance * 2, d);
         }
         else if (d <= closeDistance)
         {
-            desiredVelocity = Vector3.zero;
+            agent.SetDestination(Vector3.zero);
         }
 
         
-        Vector3 steer = desiredVelocity - velocity;
-        steer.z = 0;
-        return steer;
+        Vector3 steer = desiredVelocity - agent.velocity;
+        steer.y = 0;
+        //return steer;
     }
 
     /// <summary>
@@ -150,7 +152,7 @@ public class Movement : MonoBehaviour {
     /// return a seek to the vector position
     /// </summary>
     /// <returns></returns>
-    public Vector3 Wander()
+    public void Wander()
     {        
         wanderAng += Random.Range(-wanderRad, wanderRad);
 
@@ -163,14 +165,14 @@ public class Movement : MonoBehaviour {
         {
             wanderAng = -wanderMaxAng;
         }
-        
-        Quaternion rotate = Quaternion.Euler(0, 0, wanderAng);
+
+        Quaternion rotate = Quaternion.Euler(wanderAng, 0, 0);
         Vector3 direction = rotate * this.transform.forward;
         direction = direction.normalized * wanderRad;
 
         Vector3 wanderTo = this.transform.position + this.transform.forward * wanderDist + direction;
 
-        return Seek(wanderTo);
+        agent.destination = (wanderTo);
     }
 
     /// <summary>
@@ -178,9 +180,9 @@ public class Movement : MonoBehaviour {
     /// </summary>
     /// <param name="myTarget"></param>
     /// <returns></returns>
-    public Vector3 Flee(Vector3 myTarget)
+    public void Flee(Vector3 myTarget)
     {
-        return -1 * Seek(myTarget);
+        agent.SetDestination(-1 * (myTarget));
     }
 
     /// <summary>
@@ -194,15 +196,15 @@ public class Movement : MonoBehaviour {
 		forces = Vector3.zero;
 
         if (wanderWt != 0)
-            forces += wanderWt * Wander();
+            Wander();
         if (seekWt != 0)
-            forces += seekWt * Seek(target.transform.position);
+             Seek(target.transform.position);
         if (arrivalWt != 0)
-            forces += arrivalWt * Arrival(target);
+            Arrival(target);
         if (fleeWt != 0)
-            forces += fleeWt * Flee(target.transform.position);
+            Flee(target.transform.position);
 
-        forces.z = 0;
+        forces.y = 0;
         return forces;
 	}
 
@@ -224,6 +226,7 @@ public class Movement : MonoBehaviour {
     {
         if(GUI.Button( new Rect(10, 10, 100, 20), new GUIContent("Wander")))
         {
+            agent.speed = maxSpeed;
             wanderWt = 100.0f;
             seekWt = 0.0f;
             arrivalWt = 0.0f;
@@ -232,6 +235,7 @@ public class Movement : MonoBehaviour {
         }
         if (GUI.Button(new Rect(10, 35, 100, 20), new GUIContent("Seek")))
         {
+            agent.speed = maxSpeed;
             wanderWt = 0.0f;
             seekWt = 10.0f;
             arrivalWt = 0.0f;
@@ -240,6 +244,7 @@ public class Movement : MonoBehaviour {
         }
         if (GUI.Button(new Rect(10, 60, 100, 20), new GUIContent("Arrival")))
         {
+            agent.speed = maxSpeed;
             wanderWt = 0.0f;
             seekWt = 0.0f;
             arrivalWt = 10.0f;
@@ -248,6 +253,7 @@ public class Movement : MonoBehaviour {
         }
         if (GUI.Button(new Rect(10, 85, 100, 20), new GUIContent("Flee")))
         {
+            agent.speed = maxSpeed;
             wanderWt = 0.0f;
             seekWt = 0.0f;
             arrivalWt = 0.0f;
