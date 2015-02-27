@@ -1,13 +1,8 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public enum MovementState{
-	Seek,
-	Arrive,
-	Wander
-}
+public class GoodWander : MonoBehaviour {
 
-public class Movement : MonoBehaviour {
 
     NavMeshAgent agent;
 
@@ -17,14 +12,14 @@ public class Movement : MonoBehaviour {
     //movement vectors
     public Vector3 velocity;
     public Vector3 acceleration;
-	public Vector3 forces;
-	
+    public Vector3 forces;
+
     //math forces
     public float maxForce = 3.0f;
     public float mass = 1.0f;
     public float maxSpeed = 6.0f;
     public float closeDistance;
-    
+
     //weights
     public float wanderWt;
     public float seekWt = 0.0f;
@@ -36,29 +31,43 @@ public class Movement : MonoBehaviour {
     public float wanderRad = 100.0f;
     public float wanderDist = 4.0f;
 
-	private MovementState myState;
-    private Transform myTarget = null;
+    private MovementState myState;
+    private Transform myTarget;
 
-	public MovementState MyState { get { return myState;}}
+    public MovementState MyState { get { return myState; } }
 
-	
 
-	// Use this for initialization
-	void Start () {
+
+    // Use this for initialization
+    void Start()
+    {
         agent = GetComponent<NavMeshAgent>();
-		myState = MovementState.Wander;
-        acceleration = new Vector3(0,0);
+        myState = MovementState.Wander;
+        myTarget = null;
+        acceleration = new Vector3(0, 0);
         velocity = new Vector3(.12f * transform.localScale.x, 0, 0);
-	}
+    }
 
-	// Update is called once per frame
-	/// <summary>
-	/// Update acceleration based off of forces and then add that to the velocity
+    // Update is called once per frame
+    /// <summary>
+    /// Update acceleration based off of forces and then add that to the velocity
     /// then add velocity to position for mvoement
     /// reset acceleration at end
-	/// </summary>
-    void Update () {
-		acceleration = calculateSteeringForces();
+    /// </summary>
+    void Update()
+    {
+        if ((transform.position - target.position).magnitude < 5.0f)
+        {
+            wanderWt = 0;
+            maxSpeed = .08f;
+        }
+        else
+        {
+            wanderWt = 1;
+            maxSpeed = .02f;
+        }
+
+        acceleration = calculateSteeringForces();
 
         calculateSteeringForces();
 
@@ -71,25 +80,25 @@ public class Movement : MonoBehaviour {
 
         transform.position += velocity;
         acceleration = Vector3.zero;
-	}
+    }
 
-	/// <summary>
-	/// Changes the state of the object, if you do not specify a target it will go to wander.
-	/// </summary>
-	/// <param name="newState">State changing to.</param>
-	/// <param name="myTarget">Target transform to follow in case of seek or arrive.</param>
-	public void ChangeState(MovementState newState, Transform myTarget = null)
-	{
-		myState = newState;
+    /// <summary>
+    /// Changes the state of the object, if you do not specify a target it will go to wander.
+    /// </summary>
+    /// <param name="newState">State changing to.</param>
+    /// <param name="myTarget">Target transform to follow in case of seek or arrive.</param>
+    public void ChangeState(MovementState newState, Transform myTarget = null)
+    {
+        myState = newState;
 
-		if(myTarget == null)
-		{
-			myState = MovementState.Wander;
-			return;
-		}
+        if (myTarget == null)
+        {
+            myState = MovementState.Wander;
+            return;
+        }
 
-		this.myTarget = myTarget;
-	}
+        this.myTarget = myTarget;
+    }
 
     /// <summary>
     /// Create and normalise a desired vector
@@ -135,7 +144,7 @@ public class Movement : MonoBehaviour {
             agent.SetDestination(Vector3.zero);
         }
 
-        
+
         Vector3 steer = desiredVelocity - agent.velocity;
         steer.y = 0;
         //return steer;
@@ -152,7 +161,7 @@ public class Movement : MonoBehaviour {
     /// </summary>
     /// <returns></returns>
     public void Wander()
-    {        
+    {
         wanderAng += Random.Range(-wanderRad, wanderRad);
 
         if (wanderAng > wanderMaxAng)
@@ -191,22 +200,17 @@ public class Movement : MonoBehaviour {
     /// set forces to the weight and call the required movement function
     /// </summary>
     /// <returns></returns>
-	public Vector3 calculateSteeringForces()
-	{
-		forces = Vector3.zero;
-
+    public Vector3 calculateSteeringForces()
+    {
+        forces = Vector3.zero;
         if (wanderWt != 0)
             Wander();
-        if (seekWt != 0)
-             Seek(target.transform.position);
-        if (arrivalWt != 0)
-            Arrival(target);
-        if (fleeWt != 0)
-            Flee(target.transform.position);
+        else
+            Flee(target.position);
 
         forces.y = 0;
         return forces;
-	}
+    }
 
     /// <summary>
     /// take in a vector 3 for movement
@@ -218,58 +222,7 @@ public class Movement : MonoBehaviour {
         acceleration += steeringForce / mass;
     }
 
-    /// <summary>
-    /// Create a GUI system that displays the movement abilities
-    /// when the button is clicked set the weights correctly
-    /// </summary>
-    void OnGUI()
-    {
-        if(GUI.Button( new Rect(10, 10, 100, 20), new GUIContent("Wander")))
-        {
-            agent.speed = maxSpeed;
-            wanderWt = 100.0f;
-            seekWt = 0.0f;
-            arrivalWt = 0.0f;
-            fleeWt = 0.0f;
-            Debug.Log("WANDER");
-        }
-        if (GUI.Button(new Rect(10, 35, 100, 20), new GUIContent("Seek")))
-        {
-            agent.speed = maxSpeed;
-            wanderWt = 0.0f;
-            seekWt = 10.0f;
-            arrivalWt = 0.0f;
-            fleeWt = 0.0f;
-            Debug.Log("Seek");
-        }
-        if (GUI.Button(new Rect(10, 60, 100, 20), new GUIContent("Arrival")))
-        {
-            agent.speed = maxSpeed;
-            wanderWt = 0.0f;
-            seekWt = 0.0f;
-            arrivalWt = 10.0f;
-            fleeWt = 0.0f;
-            Debug.Log("Arrival");
-        }
-        if (GUI.Button(new Rect(10, 85, 100, 20), new GUIContent("Flee")))
-        {
-            agent.speed = maxSpeed;
-            wanderWt = 0.0f;
-            seekWt = 0.0f;
-            arrivalWt = 0.0f;
-            fleeWt = 10.0f;
-            Debug.Log("Flee");
-        }
-        if (GUI.Button(new Rect(10, 110, 100, 20), new GUIContent("Pathfind")))
-        {
-            agent.speed = maxSpeed;
-            wanderWt = 0.0f;
-            seekWt = 0.0f;
-            arrivalWt = 0.0f;
-            fleeWt = 0.0f;
-            Debug.Log("Pathfind");
-            agent.SetDestination(Vector3.zero);
-        }
-    }
 
+
+    
 }
