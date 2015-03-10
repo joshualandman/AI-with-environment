@@ -1,165 +1,209 @@
 ﻿using UnityEngine;
 using System.Collections;
 
+public enum CurrentState
+{
+    Rest,
+    Wander,
+    Pursue,
+    Flee
+}
+
 public class GoodWander : MonoBehaviour {
 
+    
+
+    #region FIXED_CHARACTER_MOTIVES
+
+    /// From 0 to 1.
+    public float bravery;
+
+    #endregion
+
+    #region LUCID_CHARACTER_MOTIVES
+
+    // From 0 to 1.
+    public float confidence;
+
+    #endregion
+
+    #region WEAPON_ATTRIBUTES
+
+    public int maxAmmo = 30;
+    public int currentAmmo = 30;
+    public int maxReload = 60;
+    public int currentReload = 0;
+
+    public float accurateDist = 1.0f;
+    public float innacurateDist = 20.0f;
+
+    public float maxAccuracy = .8f;
+
+    private Vector3 coneLeft;
+    private Vector3 coneRight;
+
+    #endregion
+
+    #region CHARACTER_STATES
+    public int health = 2;
+    #endregion
+
+    #region STATE_HANDLING
+
+    // State
+    private CurrentState myState;
+    public CurrentState MyState { get { return myState; } }
+
+    #endregion
+
+    public GameObject target;
+
+    #region NAVIGATION
 
     NavMeshAgent agent;
 
-    //attributes
-    public Transform target;
-
-    //movement vectors
-    public Vector3 velocity;
-    public Vector3 acceleration;
-    public Vector3 forces;
-
-    //math forces
-    public float maxForce = 3.0f;
-    public float mass = 1.0f;
-    public float maxSpeed = 6.0f;
     public float closeDistance;
-
-    //weights
-    public float wanderWt;
-    public float seekWt = 0.0f;
-    public float arrivalWt = 0.0f;
-    public float fleeWt = 0.0f;
 
     public float wanderAng = 0.0f;
     public float wanderMaxAng = 6.0f;
     public float wanderRad = 100.0f;
     public float wanderDist = 4.0f;
 
-    private MovementState myState;
-    private Transform myTarget;
-
-    public MovementState MyState { get { return myState; } }
-
-
+    #endregion
 
     // Use this for initialization
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        myState = MovementState.Wander;
-        myTarget = null;
-        acceleration = new Vector3(0, 0);
-        velocity = new Vector3(.12f * transform.localScale.x, 0, 0);
+        myState = CurrentState.Pursue;
     }
 
-    // Update is called once per frame
     /// <summary>
-    /// Update acceleration based off of forces and then add that to the velocity
-    /// then add velocity to position for mvoement
-    /// reset acceleration at end
+    /// Handles all state calls
     /// </summary>
     void Update()
     {
-        if ((transform.position - target.position).magnitude < 5.0f)
+        // Things seem backwards because we're dotting against these.  They're 90 degrees off of what we actually want
+        coneLeft = Quaternion.Euler(0, 60, 0) * transform.forward;
+        coneRight = Quaternion.Euler(0, -60, 0) * transform.forward;
+
+        // This is the code needed to ensure reloading occurs.  You can move this code somewhere else if you only want reloading to happen in other states.
+        if (currentReload > 0)
+            currentReload--;
+
+        if (currentReload == 0)
         {
-            wanderWt = 0;
-            maxSpeed = .08f;
-        }
-        else
-        {
-            wanderWt = 1;
-            maxSpeed = .02f;
+            currentAmmo = maxAmmo;
+            currentReload = -1;
         }
 
-        acceleration = calculateSteeringForces();
-
-        calculateSteeringForces();
-
-        velocity += acceleration * Time.deltaTime;
-        //agent.velocity.y = 0;
-        velocity = Vector3.ClampMagnitude(agent.velocity, maxSpeed);
-
-        if (velocity != Vector3.zero)
-            transform.forward = velocity.normalized;
-
-        transform.position += velocity;
-        acceleration = Vector3.zero;
+        UpdateStates();
+        FindDestination();
     }
 
     /// <summary>
-    /// Changes the state of the object, if you do not specify a target it will go to wander.
+    /// Takes care of any housekeeping needed by any of the states.  This is where you'd do things like call state changes.
     /// </summary>
-    /// <param name="newState">State changing to.</param>
-    /// <param name="myTarget">Target transform to follow in case of seek or arrive.</param>
-    public void ChangeState(MovementState newState, Transform myTarget = null)
+    public void UpdateStates()
     {
+        //-----------WARNING-----------|
+        // Make sure to set a target   |
+        // for pursue and flee if you  |
+        // plan on changing to them.   |
+        //-----------WARNING-----------|
+
+        switch(myState)
+        {
+            case CurrentState.Rest:
+                break;
+
+            case CurrentState.Wander:
+                break;
+
+            case CurrentState.Pursue:
+                break;
+
+            case CurrentState.Flee:
+                break;
+        }
+    }
+
+
+    /// <summary>
+    /// Initializes the state chosen.
+    /// </summary>
+    public void InitializeState(CurrentState newState)
+    {
+        //-----------WARNING-----------|
+        // Make sure to set a target   |
+        // for pursue and flee if you  |
+        // plan on changing to them.   |
+        // You must do that right      |
+        // before you call this method.|
+        //-----------WARNING-----------|
+
         myState = newState;
 
-        if (myTarget == null)
+        switch (newState)
         {
-            myState = MovementState.Wander;
-            return;
-        }
+            case CurrentState.Rest:
+                agent.Stop();
+                break;
 
-        this.myTarget = myTarget;
+            case CurrentState.Wander:
+                agent.Resume();
+                break;
+
+            case CurrentState.Pursue:
+                agent.Resume();
+                break;
+
+            case CurrentState.Flee:
+                agent.Resume();
+                break;
+        }
     }
 
     /// <summary>
-    /// Create and normalise a desired vector
-    /// create a steer vector by subtracting the velocity from the desired
-    /// return the desire vector
+    /// Set's the destination.
+    /// </summary>
+    /// <returns></returns>
+    public void FindDestination()
+    {
+
+        switch(myState)
+        {
+            case CurrentState.Rest:
+            break;
+            
+            case CurrentState.Wander:
+            Wander();
+            break;
+
+            case CurrentState.Pursue:
+            Pursue(target.transform.position, target.GetComponent<Movement>().velocity);
+            break;
+
+            case CurrentState.Flee:
+            Flee(target.transform.position);
+            break;
+
+        }
+    }
+
+    /// <summary>
+    /// Set's the destination of the character to the position of the target a few frames ahead.
     /// </summary>
     /// <param name="myTarget"> vector position of target </param>
-    /// <returns></returns>
-    public void Seek(Vector3 myTarget)
+    /// <param name="myTargetVel">Velocity of the target</param>
+    public void Pursue(Vector3 myTarget, Vector3 myTargetVel)
     {
-        /*Vector3 desired = Vector3.Normalize(myTarget - agent.transform.position);
-        desired *= maxSpeed;
-        Vector3 steer = desired - velocity;
-        steer.z = 0;
-        return steer;*/
-        agent.SetDestination(myTarget);
+        agent.SetDestination(myTarget + myTargetVel.normalized * 3);
     }
 
     /// <summary>
-    /// calculate displacesment of target and current, retrieve the madnitude for distance to slow down
-    /// create a desired vector by normalizing the distance and multiplying by maxspeed
-    /// if you are within a lerp range of distance+1 and distance *2, slow down
-    /// if you are less then or equal to the set close distance, stop moving
-    /// return desired vector - velocity
+    /// Wanders in the nearby area.
     /// </summary>
-    /// <param name="myTarget"> vector position of target</param>
-    /// <returns></returns>
-    public void Arrival(Transform myTarget)
-    {
-        agent.SetDestination(myTarget.position);
-        Vector3 distance = myTarget.transform.position - agent.transform.position;
-        float d = distance.magnitude;
-
-        Vector3 desiredVelocity = distance.normalized;
-        desiredVelocity *= maxSpeed;
-
-        if (d <= (closeDistance * 2) && d >= (closeDistance + 1))
-        {
-            agent.speed *= Mathf.InverseLerp(0, closeDistance * 2, d);
-        }
-        else if (d <= closeDistance)
-        {
-            agent.SetDestination(Vector3.zero);
-        }
-
-
-        Vector3 steer = desiredVelocity - agent.velocity;
-        steer.y = 0;
-        //return steer;
-    }
-
-    /// <summary>
-    /// set wander angle to a range between -radius and positive wonder radius
-    /// if the angle is larget than the max, set to max, if smaller than the min, set to min
-    /// create a quarternion based off the wander angle
-    /// create a direction vector based off the quarternion times the forward
-    /// multiply the normalized direction vector by the radius
-    /// set a vector to a position that is the current position + the forward * the distance + the direction
-    /// return a seek to the vector position
-    /// </summary>
-    /// <returns></returns>
     public void Wander()
     {
         wanderAng += Random.Range(-wanderRad, wanderRad);
@@ -185,7 +229,7 @@ public class GoodWander : MonoBehaviour {
     }
 
     /// <summary>
-    /// return -seek
+    /// Flees a target.
     /// </summary>
     /// <param name="myTarget"></param>
     /// <returns></returns>
@@ -195,31 +239,59 @@ public class GoodWander : MonoBehaviour {
     }
 
     /// <summary>
-    /// set forces to zero
-    /// based off of the weight of movement choices
-    /// set forces to the weight and call the required movement function
+    /// Shoots at the current target
     /// </summary>
-    /// <returns></returns>
-    public Vector3 calculateSteeringForces()
+    public void ShootAtTarget()
     {
-        forces = Vector3.zero;
-        if (wanderWt != 0)
-            Wander();
-        else
-            Flee(target.position);
+        if (currentAmmo <= 0)
+            return;
 
-        forces.y = 0;
-        return forces;
+        // Make sure that the target is relatively in front of you.  Later we'll also check to make sure you can see the target via raycasting.
+        if (Vector3.Dot(coneLeft, target.transform.position - transform.position) < 0 && Vector3.Dot(coneRight, target.transform.position - transform.position) > 0)
+        {
+            currentAmmo--;
+
+            // Get some preliminary info
+            float dist = (target.transform.position - transform.position).magnitude;
+            float rand = Random.Range(0.0f, 1.0f);
+
+            // If they're within max accuracy range they're within max accuracy.
+            if (dist < accurateDist && maxAccuracy > rand)
+            {
+                target.GetComponent<GoodWander>().health--;
+                return;
+            }
+
+
+            // Otherwise the further they get the closer to 0% chance of hitting them, linearly.  Linear should be fine for our purpose.
+            if(maxAccuracy 
+                * Mathf.Lerp(1, 0, (dist - accurateDist) / (innacurateDist - accurateDist)) > rand)
+            {
+                target.GetComponent<GoodWander>().health--;
+            }
+        }
     }
 
     /// <summary>
-    /// take in a vector 3 for movement
-    /// add the vector/mass to the acceleration
+    /// Begins reloading the weapon
+    /// All of the code that is actually used for the reloading itself occurs elsewhere.
     /// </summary>
-    /// <param name="steeringForce"></param>
-    protected void ApplyForce(Vector3 steeringForce)
+    public void Reload()
     {
-        acceleration += steeringForce / mass;
+        currentReload = maxReload;
+
+        // THE CODE BELOW IS FOR DEMONSTRATION
+        // Reloading code is below.  You can place it wherever you want to go so reloading occurs
+
+        //if (currentReload > 0)
+        //    currentReload--;
+
+        //if (currentReload == 0)
+        //{
+        //    currentAmmo = maxAmmo;
+        //    currentReload = -1;
+        //}
+
     }
 
 
