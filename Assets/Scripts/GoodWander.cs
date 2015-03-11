@@ -75,7 +75,12 @@ public class GoodWander : MonoBehaviour {
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        myState = CurrentState.Pursue;
+        myState = CurrentState.Wander;
+    }
+
+    float getDistance(Vector3 self, Vector3 desiredLocation)
+    {
+        return Mathf.Sqrt(Mathf.Pow((self.x - desiredLocation.x), 2) + Mathf.Pow((self.y - desiredLocation.y), 2) + Mathf.Pow((self.z - desiredLocation.z), 2));
     }
 
     /// <summary>
@@ -83,6 +88,7 @@ public class GoodWander : MonoBehaviour {
     /// </summary>
     void Update()
     {
+        Debug.Log(myState);
         // Things seem backwards because we're dotting against these.  They're 90 degrees off of what we actually want
         coneLeft = Quaternion.Euler(0, 60, 0) * transform.forward;
         coneRight = Quaternion.Euler(0, -60, 0) * transform.forward;
@@ -118,12 +124,20 @@ public class GoodWander : MonoBehaviour {
                 break;
 
             case CurrentState.Wander:
+                if (getDistance(transform.position, target.transform.position) <= 5)
+                    InitializeState(CurrentState.Pursue);
+                if (getDistance(transform.position, target.transform.position) >= 20)
+                    InitializeState(CurrentState.Rest);
                 break;
 
             case CurrentState.Pursue:
+                if (getDistance(transform.position, target.transform.position) <= 2)
+                    InitializeState(CurrentState.Flee);
                 break;
 
             case CurrentState.Flee:
+                if (getDistance(transform.position, target.transform.position) >= 5)
+                    InitializeState(CurrentState.Wander);
                 break;
         }
     }
@@ -170,24 +184,22 @@ public class GoodWander : MonoBehaviour {
     /// <returns></returns>
     public void FindDestination()
     {
-
         switch(myState)
         {
             case CurrentState.Rest:
             break;
             
             case CurrentState.Wander:
-            Wander();
-            break;
+                Wander();
+                break;
 
             case CurrentState.Pursue:
-            Pursue(target.transform.position, target.GetComponent<Movement>().velocity);
-            break;
+                Pursue(target.transform.position, target.GetComponent<Movement>().velocity);
+                break;
 
             case CurrentState.Flee:
-            Flee(target.transform.position);
-            break;
-
+                Flee(target.transform.position);
+                break;
         }
     }
 
@@ -291,7 +303,6 @@ public class GoodWander : MonoBehaviour {
         //    currentAmmo = maxAmmo;
         //    currentReload = -1;
         //}
-
     }
 
 

@@ -1,0 +1,14 @@
+D:\AI-with-environment\Temp\bin\Debug\Assembly-CSharp.dll
+D:\AI-with-environment\Temp\bin\Debug\Assembly-CSharp.pdb
+D:\AI-with-environment\Temp\bin\Debug\Assembly-UnityScript-firstpass.dll
+D:\AI-with-environment\Temp\bin\Debug\UnityEditor.dll
+D:\AI-with-environment\Temp\bin\Debug\UnityEngine.dll
+D:\AI-with-environment\Temp\bin\Debug\UnityEngine.UI.dll
+D:\AI-with-environment\Temp\bin\Debug\Mono.Cecil.dll
+D:\AI-with-environment\Temp\bin\Debug\nunit.framework.dll
+D:\AI-with-environment\Temp\bin\Debug\Unity.DataContract.dll
+D:\AI-with-environment\Temp\bin\Debug\ICSharpCode.NRefactory.dll
+D:\AI-with-environment\Temp\bin\Debug\Assembly-CSharp-firstpass.pdb
+D:\AI-with-environment\obj\Debug\Assembly-CSharp-vs.csprojResolveAssemblyReference.cache
+D:\AI-with-environment\obj\Debug\Assembly-CSharp.dll
+D:\AI-with-environment\obj\Debug\Assembly-CSharp.pdb
