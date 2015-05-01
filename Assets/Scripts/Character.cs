@@ -9,21 +9,21 @@ public enum CurrentState
     Flee
 }
 
-public class GoodWander : MonoBehaviour {
+public class Character : MonoBehaviour {
 
     
 
     #region FIXED_CHARACTER_MOTIVES
 
     /// From 0 to 1.
-    public float bravery;
+    public float bravery = .5f;
 
     #endregion
 
     #region LUCID_CHARACTER_MOTIVES
 
     // From 0 to 1.
-    public float confidence;
+    public float confidence = .8f;
 
     #endregion
 
@@ -36,8 +36,15 @@ public class GoodWander : MonoBehaviour {
 
     public float accurateDist = 1.0f;
     public float innacurateDist = 20.0f;
+    public Vector3 initialPos;
 
-    public float maxAccuracy = .8f;
+    public float vision = 40.0f;
+
+    public float maxAccuracy = .5f;
+
+    public bool enemiesShooting = false;
+
+    public string enemyTag = "goodguy";
 
     private Vector3 coneLeft;
     private Vector3 coneRight;
@@ -45,14 +52,13 @@ public class GoodWander : MonoBehaviour {
     #endregion
 
     #region CHARACTER_STATES
-    public int health = 2;
+    public int health = 10;
     #endregion
 
     #region STATE_HANDLING
 
     // State
-    private CurrentState myState;
-    public CurrentState MyState { get { return myState; } }
+    public CurrentState myState;
 
     #endregion
 
@@ -74,8 +80,11 @@ public class GoodWander : MonoBehaviour {
     // Use this for initialization
     void Start()
     {
-        agent = GetComponent<NavMeshAgent>();
+        agent = this.GetComponent<NavMeshAgent>();
         myState = CurrentState.Wander;
+        initialPos = transform.position;
+        bravery += Random.Range(-0.1f, 0.1f);
+        confidence += Random.Range(-0.1f, 0.1f);
     }
 
     float getDistance(Vector3 self, Vector3 desiredLocation)
@@ -86,9 +95,28 @@ public class GoodWander : MonoBehaviour {
     /// <summary>
     /// Handles all state calls
     /// </summary>
-    void Update()
+    void FixedUpdate()
     {
-        Debug.Log(myState);
+        if (CompareTag("deadgoodguy") || CompareTag("deadbadguy"))
+            return;
+        if (health <= 0 )
+        {
+            transform.position = new Vector3(-500, -500, 500);
+            InitializeState(CurrentState.Rest);
+
+            GameObject[] enemies = GameObject.FindGameObjectsWithTag(enemyTag);
+            this.tag = "dead" + this.tag;
+            for(int i = 0; i < enemies.Length; i++)
+            {
+                if(enemies[i].GetComponent<Character>().target == this.gameObject)
+                {
+                    enemies[i].GetComponent<Character>().target = null;
+                }
+            }
+            
+            return;
+        }
+
         // Things seem backwards because we're dotting against these.  They're 90 degrees off of what we actually want
         coneLeft = Quaternion.Euler(0, 60, 0) * transform.forward;
         coneRight = Quaternion.Euler(0, -60, 0) * transform.forward;
@@ -105,6 +133,8 @@ public class GoodWander : MonoBehaviour {
 
         UpdateStates();
         FindDestination();
+
+        enemiesShooting = false;
     }
 
     /// <summary>
@@ -121,23 +151,71 @@ public class GoodWander : MonoBehaviour {
         switch(myState)
         {
             case CurrentState.Rest:
+                if (currentAmmo == maxAmmo)
+                    InitializeState(CurrentState.Wander);
                 break;
 
             case CurrentState.Wander:
-                if (getDistance(transform.position, target.transform.position) <= 5)
+                target = FindTarget();
+                if (target != null)
+                {
                     InitializeState(CurrentState.Pursue);
-                if (getDistance(transform.position, target.transform.position) >= 20)
+                }
+                if(currentAmmo <= 0)
+                {
+                    Reload();
                     InitializeState(CurrentState.Rest);
+                }
                 break;
 
             case CurrentState.Pursue:
-                if (getDistance(transform.position, target.transform.position) <= 2)
+
+                if(target == null)
+                {
+                    target = FindTarget();
+                    if (target == null)
+                    {
+                        InitializeState(CurrentState.Wander);
+                        break;
+                    }
+                }
+                float charDist = (target.transform.position - transform.position).magnitude;
+                if (charDist >= vision)
+                    InitializeState(CurrentState.Wander);
+
+                if (enemiesShooting && charDist <= innacurateDist)
+                {
+                    if (Random.Range(0,1.0f) >= bravery)
+                    {
+                        InitializeState(CurrentState.Flee);
+                    }
+                }
+                if (currentAmmo <= 0)
+                {
                     InitializeState(CurrentState.Flee);
+                }
+                if (charDist <= innacurateDist * confidence)
+                    ShootAtTarget();
                 break;
 
             case CurrentState.Flee:
-                if (getDistance(transform.position, target.transform.position) >= 5)
+                if (!enemiesShooting && currentAmmo > 0)
+                {
+                    target = FindTarget();
+                    if (target != null)
+                    {
+                        InitializeState(CurrentState.Pursue);
+                    }
+                    break;
+                }
+                if(target == null)
+                {
                     InitializeState(CurrentState.Wander);
+                    break;
+                }
+                if ((target.transform.position - transform.position).magnitude >= vision)
+                    InitializeState(CurrentState.Wander);
+
                 break;
         }
     }
@@ -161,18 +239,22 @@ public class GoodWander : MonoBehaviour {
         switch (newState)
         {
             case CurrentState.Rest:
+                agent.speed = 0.0f;
                 agent.Stop();
                 break;
 
             case CurrentState.Wander:
+                agent.speed = 3.5f;
                 agent.Resume();
                 break;
 
             case CurrentState.Pursue:
+                agent.speed = 3.5f;
                 agent.Resume();
                 break;
 
             case CurrentState.Flee:
+                agent.speed = 7.0f;
                 agent.Resume();
                 break;
         }
@@ -194,11 +276,13 @@ public class GoodWander : MonoBehaviour {
                 break;
 
             case CurrentState.Pursue:
-                Pursue(target.transform.position, target.GetComponent<Movement>().velocity);
+                if(target != null)
+                    Pursue(target.transform.position);
                 break;
 
             case CurrentState.Flee:
-                Flee(target.transform.position);
+                if (target != null)
+                    Flee(target.transform.position);
                 break;
         }
     }
@@ -208,9 +292,9 @@ public class GoodWander : MonoBehaviour {
     /// </summary>
     /// <param name="myTarget"> vector position of target </param>
     /// <param name="myTargetVel">Velocity of the target</param>
-    public void Pursue(Vector3 myTarget, Vector3 myTargetVel)
+    public void Pursue(Vector3 myTarget)
     {
-        agent.SetDestination(myTarget + myTargetVel.normalized * 3);
+        agent.SetDestination(myTarget);
     }
 
     /// <summary>
@@ -233,7 +317,6 @@ public class GoodWander : MonoBehaviour {
         Quaternion rotate = Quaternion.Euler(0, wanderAng, 0);
         Vector3 direction = rotate * this.transform.forward;
         direction = direction.normalized * wanderRad;
-        Debug.Log(direction);
 
         Vector3 wanderTo = this.transform.position + this.transform.forward * wanderDist + direction;
 
@@ -255,13 +338,40 @@ public class GoodWander : MonoBehaviour {
     /// </summary>
     public void ShootAtTarget()
     {
+        if (target == null)
+            return;
         if (currentAmmo <= 0)
             return;
 
         // Make sure that the target is relatively in front of you.  Later we'll also check to make sure you can see the target via raycasting.
-        if (Vector3.Dot(coneLeft, target.transform.position - transform.position) < 0 && Vector3.Dot(coneRight, target.transform.position - transform.position) > 0)
+        //if (Vector3.Dot(coneLeft, target.transform.position - transform.position) < 0 && Vector3.Dot(coneRight, target.transform.position - transform.position) > 0)
+        if(true)
         {
             currentAmmo--;
+
+            GameObject[] enemies = GameObject.FindGameObjectsWithTag(enemyTag);
+
+            for (int i = 0; i < enemies.Length; i++)
+            {
+                Vector3 betweenVec = enemies[i].transform.position - transform.position;
+                if (enemies[i].GetComponent<Character>() == null)
+                    continue;
+                if (betweenVec.magnitude <= vision)
+                {
+                    enemies[i].GetComponent<Character>().enemiesShooting = true;
+                }
+            }
+
+            Debug.DrawLine(transform.position, target.transform.position);
+            RaycastHit hit;
+            if (Physics.Raycast(transform.position, target.transform.position - transform.position, out hit))
+            {
+                if (hit.transform.CompareTag("goodguy") || hit.transform.CompareTag("badguy"))
+                {
+                    hit.transform.GetComponent<Character>().health--;
+                }
+                return;
+            }
 
             // Get some preliminary info
             float dist = (target.transform.position - transform.position).magnitude;
@@ -270,7 +380,7 @@ public class GoodWander : MonoBehaviour {
             // If they're within max accuracy range they're within max accuracy.
             if (dist < accurateDist && maxAccuracy > rand)
             {
-                target.GetComponent<GoodWander>().health--;
+                target.GetComponent<Character>().health--;
                 return;
             }
 
@@ -279,7 +389,7 @@ public class GoodWander : MonoBehaviour {
             if(maxAccuracy 
                 * Mathf.Lerp(1, 0, (dist - accurateDist) / (innacurateDist - accurateDist)) > rand)
             {
-                target.GetComponent<GoodWander>().health--;
+                target.GetComponent<Character>().health--;
             }
         }
     }
@@ -305,7 +415,24 @@ public class GoodWander : MonoBehaviour {
         //}
     }
 
+    private GameObject FindTarget()
+    {
+        GameObject[] enemies = GameObject.FindGameObjectsWithTag(enemyTag);
 
+        for (int i = 0; i < enemies.Length; i++)
+        {
+            Vector3 betweenVec = enemies[i].transform.position - transform.position;
+            if (betweenVec.magnitude <= vision && Vector3.Dot(betweenVec, transform.forward) > 0)
+            {
+
+                
+                return enemies[i];
+            }
+        }
+
+        return null;
+        
+    }
 
     
 }
