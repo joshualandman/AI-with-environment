@@ -47,6 +47,11 @@
   </ItemGroup>
   <ItemGroup>
      <Compile Include="Assets\Scripts\Character.cs" />
+     <Compile Include="Assets\Scripts\Genetics\Individual.cs" />
+     <Compile Include="Assets\Scripts\Genetics\Population.cs" />
+     <Compile Include="Assets\Scripts\Genetics\Program.cs" />
+     <Compile Include="Assets\Scripts\Genetics\ThreshPop.cs" />
+     <Compile Include="Assets\Scripts\Genetics\Util.cs" />
      <Compile Include="Assets\Scripts\Manager.cs" />
      <Compile Include="Assets\Scripts\Movement.cs" />
      <Compile Include="Assets\Scripts\ObjectManager.cs" />

@@ -27,6 +27,9 @@ public class Character : MonoBehaviour {
 
     #endregion
 
+    public int timeSurvived = 0;
+    public int kills = 0;
+
     #region WEAPON_ATTRIBUTES
 
     public int maxAmmo = 30;
@@ -83,8 +86,7 @@ public class Character : MonoBehaviour {
         agent = this.GetComponent<NavMeshAgent>();
         myState = CurrentState.Wander;
         initialPos = transform.position;
-        bravery += Random.Range(-0.1f, 0.1f);
-        confidence += Random.Range(-0.1f, 0.1f);
+        this.transform.Rotate(new Vector3(0, 1, 0), Random.Range(0, 360));
     }
 
     float getDistance(Vector3 self, Vector3 desiredLocation)
@@ -97,25 +99,9 @@ public class Character : MonoBehaviour {
     /// </summary>
     void FixedUpdate()
     {
-        if (CompareTag("deadgoodguy") || CompareTag("deadbadguy"))
+        timeSurvived++;
+        if (CompareTag("dead"))
             return;
-        if (health <= 0 )
-        {
-            transform.position = new Vector3(-500, -500, 500);
-            InitializeState(CurrentState.Rest);
-
-            GameObject[] enemies = GameObject.FindGameObjectsWithTag(enemyTag);
-            this.tag = "dead" + this.tag;
-            for(int i = 0; i < enemies.Length; i++)
-            {
-                if(enemies[i].GetComponent<Character>().target == this.gameObject)
-                {
-                    enemies[i].GetComponent<Character>().target = null;
-                }
-            }
-            
-            return;
-        }
 
         // Things seem backwards because we're dotting against these.  They're 90 degrees off of what we actually want
         coneLeft = Quaternion.Euler(0, 60, 0) * transform.forward;
@@ -369,6 +355,11 @@ public class Character : MonoBehaviour {
                 if (hit.transform.CompareTag("goodguy") || hit.transform.CompareTag("badguy"))
                 {
                     hit.transform.GetComponent<Character>().health--;
+                    if (hit.transform.GetComponent<Character>().health <= 0)
+                    {
+                        hit.transform.GetComponent<Character>().tag = "dead";
+                        kills++;
+                    }
                 }
                 return;
             }
@@ -381,6 +372,11 @@ public class Character : MonoBehaviour {
             if (dist < accurateDist && maxAccuracy > rand)
             {
                 target.GetComponent<Character>().health--;
+                if (hit.transform.GetComponent<Character>().health <= 0)
+                {
+                    hit.transform.GetComponent<Character>().tag = "dead";
+                    kills++;
+                }
                 return;
             }
 
@@ -390,6 +386,11 @@ public class Character : MonoBehaviour {
                 * Mathf.Lerp(1, 0, (dist - accurateDist) / (innacurateDist - accurateDist)) > rand)
             {
                 target.GetComponent<Character>().health--;
+                if (hit.transform.GetComponent<Character>().health <= 0)
+                {
+                    hit.transform.GetComponent<Character>().tag = "dead";
+                    kills++;
+                }
             }
         }
     }

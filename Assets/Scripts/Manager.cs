@@ -5,166 +5,197 @@ using System.Collections.Generic;
 public class Manager : MonoBehaviour
 {
 
-    public List<float> bestGoodConf;
-    public List<float> bestGoodBrave;
-    public List<float> bestBadConf;
-    public List<float> bestBadBrave;
+    public bool reset = false;
 
-    public bool goodWaiting = false;
-    public bool badWaiting = false;
+    public float time = 0;
+
+    public GameObject goodGuy;
+    public GameObject badGuy;
+    public GameObject[] characters;
+    public int[] fitness;
+    uint[] chroms;
+
+    ThreshPop tp;
+
+    // Use this for initialization
+    void Start()
+    {
+        GeneratePop();
+    }
 
     // Update is called once per frame
+
+    /* MainClass contains all the code that knows about the specific threshold
+ 		* being evolved. The program demos how the GA works by setting up a
+ 		* ThreshPop and simulating a generation (round of the game) using that
+ 		* population. The Gen2Phen method maps an int to whatever data type and
+ 		* range the threshold needs to be for its use in the game.  Actually, only
+ 		* the chromLeng lowest order bits in the int are manipulated by the GA
+ 		* machinery.  This means that the chromosome length is very likely way
+ 		* less than 32 bits and must be stricly <= 32 to fit in an unsigned int.
+ 		* The Fitness method simulates the fitness for an individual,
+ 		* which would be determined by the end of a round of the game (earlier for
+ 		* villagers that either make it on the cart or get eaten). This class only
+ 		* interacts directly with the ThreshPop class.
+ 		* 
+ 		* As a note, passing around a uint as the genotype instead of encapsulating
+ 		* it in an object is a bit lazy because it hard-wires a maximum 32-bit
+ 		* chromosome, but it simplifies the code because you can do arithmetic
+ 		* with it directly, and working with a chromosome some arbitrary length
+ 		* up to 32 bits gives plenty of space for high-resolution parameters.
+ 		* Actually, 8 or 10 bits might be plenty for most thresholds.
+ 		* Remember that the number of bits determines the size of the search space,
+ 		* so fewer bits will result in faster evolution, at the expense of precision
+ 		* in the parameter being evolved.
+ 		* Life is all about tradeoffs, even artificial life...
+ 		*/
+
+		static int popSize = 20;				// Population size
+		static int chromLeng = 10;              // Number of bits in a chromosome
+		static int nChromVals = 1 << chromLeng; // Number of values for that many bits
+
+		/* Maps genotype (chromLeng-bit chromosome) to phenotype (float).
+		 * Phenotype could be any simple data type, but it's a float here
+		 * with an arbitrary lower and upper bound that represent the smallest
+		 * and largest possible values the threshold parameter can have in the
+		 * game.  The mapping is a linear scaling of the nChromVals distinct values
+		 * that are possible with the chromLeng-bit chromosome.  For a chromosome
+		 * length of 10, this yields 1024 different values.  The mapping for your
+		 * game could be anything you want: linear, non-linear, whatever.
+		 */ 
+		static float Gen2Phen (uint gen)
+		{
+			float lb = 0.0f;			// Lower bound for threshold range in game
+			float ub = 1.0f;			// Upper bound
+			float step = (ub - lb) / nChromVals;	// Step size for chrom values
+			return (gen * step + lb);
+		}
+
+		/* Generates a fitness value for a phenotype value
+		 * Actual function is arbitrary, but needs to return an int,
+		 * and it needs to be > 0 for roulette-wheel selection to work.
+		 * With this in mind, make sure your fitness function returns
+		 * integers > 0 for all possible cases.
+		 * 
+		 * For this example, the random element simulates the "noise" that
+		 * happens in the environment, where better values "tend" to lead
+		 * to higher survivability, but the correlation can be weak.
+		 * By cranking up the random range and/or lowering the muliplier
+		 * you can decrease the "signal to noise" ratio and explore how
+		 * the GA behaves in noisy environments.  The values here lead to
+ 		 * signal-to-noise ratio of 1:1.  The function you build for your
+ 		 * game probably wouldn't have a random elemnent.
+		 */
+		static int Fitness (Character myCharacter)
+		{
+            if (myCharacter.kills == 0)
+                return (int)(0.5f * myCharacter.timeSurvived);
+			return (int) (myCharacter.kills * myCharacter.timeSurvived);	// S/N = 1:1
+		}
+
     void FixedUpdate()
     {
-        GameObject[] goodguys = GameObject.FindGameObjectsWithTag("goodguy");
-        GameObject[] badguys = GameObject.FindGameObjectsWithTag("badguy");
-        GameObject[] deadgoodguys = GameObject.FindGameObjectsWithTag("deadgoodguy");
-        GameObject[] deadbadguys = GameObject.FindGameObjectsWithTag("deadbadguy");
-        if (!goodWaiting)
+        time++;
+
+        reset = true;
+        for (int i = 0; i < popSize; i++)
         {
+            if (characters[i] != null)
+            {
+                reset = false;
+                if (characters[i].CompareTag("dead"))
+                {
+                    fitness[i] = Fitness(characters[i].GetComponent<Character>());
+                    Destroy(characters[i]);
+                    characters[i] = null;
+                }
+            };
+        }
+
+
+        if (time >= 3000)
+        {
+            reset = true;
+        }
+
+        if (reset)
+        {
+            ResetPop();
+            GeneratePop();
+        }
+
+    }
+
+    public void GeneratePop()
+    {
+        characters = new GameObject[popSize];
+        fitness = new int[popSize];
+        // Create the population, either from the file or from scratch
+        // Presumably the popSize would be the number of NPCs that will be
+        // spawned for a round.  The data file name is set here as well by
+        // passing it into the constructor.
+        tp = new ThreshPop(chromLeng, popSize, "test1.txt");	// 
+
+        // Local storage for the chromosomes and fitness values to demonstrate
+        // how the ThreshPop is used.  In this case, we'll just store an array
+        // of chromosomes to represent the checked out population and manipulate
+        // them in simple loops to make something happen.
+        // In your game, a given threshold would be an attribute of an NPC,
+        // and the fitness would be determined when that NPC is "done"
+        chroms = new uint[popSize];
+
+        // Check out all the individuals from the population to get their chroms
+        // A CheckOut would be done when an NPC is spawned, one at a time
+
+        for (int j = 0; j < chroms.Length / 2; j++)
+        {
+            characters[j] = (GameObject)Instantiate(goodGuy, new Vector3(-2, .5f, -4.6f), Quaternion.identity);
+            chroms[j] = tp.CheckOut();
+
+            characters[j].GetComponent<Character>().bravery = Gen2Phen(chroms[j]);
+
+        }
+        for (int j = chroms.Length / 2; j < chroms.Length; j++)
+        {
+            characters[j] = (GameObject)Instantiate(badGuy, new Vector3(-45.5f, .5f, 40.3f), Quaternion.identity);
+            chroms[j] = tp.CheckOut();
+
+            characters[j].GetComponent<Character>().bravery = Gen2Phen(chroms[j]);
             
-            bestGoodConf = new List<float>();
-            bestGoodBrave = new List<float>();
-            for (int i = 0; i < goodguys.Length; i++)
-            {
-                if (goodguys[i].GetComponent<Character>().health > 0){
-                    bestGoodConf.Add(goodguys[i].GetComponent<Character>().confidence);
-                    bestGoodBrave.Add(goodguys[i].GetComponent<Character>().bravery);
-                }
-            }
-            if (bestGoodConf.Count <= 5)
-            {
-                goodWaiting = true;
-            }
         }
-         if (!badWaiting)
+
+
+    }
+
+    public void ResetPop()
+    {
+        time = 0;
+        for (int i = 0; i < popSize; i++ )
         {
-           
-            bestBadConf = new List<float>();
-            bestBadBrave = new List<float>();
-            for (int i = 0; i < badguys.Length; i++)
+            if(characters[i] != null)
             {
-                if (badguys[i].GetComponent<Character>().health > 0){
-                    bestBadConf.Add(badguys[i].GetComponent<Character>().confidence);
-                    bestBadBrave.Add(badguys[i].GetComponent<Character>().bravery);
-                }
-            }
-            if (bestBadConf.Count <= 5)
-            {
-                badWaiting = true;
+                fitness[i] = Fitness(characters[i].GetComponent<Character>());
+                Destroy(characters[i]);
+                characters[i] = null;
             }
         }
 
-        if(goodguys.Length == 0 && !badWaiting)
-        {
-            badWaiting = true;
-            while(bestBadBrave.Count >5)
-            {
-                bestBadBrave.RemoveAt(Random.Range(0, bestBadBrave.Count));
-            }
-            while (bestBadConf.Count > 5)
-            {
-                bestBadConf.RemoveAt(Random.Range(0, bestBadConf.Count));
-            }
-        }
+            // Determine fitness values for everyone & check them all back into
+            // the new population.
+            // In the your game, this would happen one at a time as each NPC
+            // is "done" and its fitness can be figured.
+            // Note that the Individuals can be checked into the new population
+            // in any order, likely not the order they were checked out.
 
-        if (badguys.Length == 0 && !goodWaiting)
-        {
-            goodWaiting = true;
-            while (bestGoodBrave.Count > 5)
+            for (int i = 0; i < popSize; i++)
             {
-                bestGoodBrave.RemoveAt(Random.Range(0, bestGoodBrave.Count));
-            }
-            while (bestGoodConf.Count > 5)
-            {
-                bestGoodConf.RemoveAt(Random.Range(0, bestGoodConf.Count));
-            }
-        }
-
-        if(goodWaiting && badWaiting)
-        {
-            goodWaiting = false;
-            badWaiting = false;
-            //restart the map
-            for(int i = 0; i < goodguys.Length + deadgoodguys.Length; i++)
-            {
-                if (i < goodguys.Length)
-                {
-                    goodguys[i].transform.position = goodguys[i].GetComponent<Character>().initialPos;
-                    goodguys[i].GetComponent<Character>().target = null;
-                    goodguys[i].tag = "goodguy";
-                    goodguys[i].GetComponent<Character>().confidence = bestGoodConf[i % bestGoodConf.Count] + Random.Range(-0.5f, 0.5f);
-                    if (goodguys[i].GetComponent<Character>().confidence > 1)
-                        goodguys[i].GetComponent<Character>().confidence = 1;
-                    if (goodguys[i].GetComponent<Character>().confidence < 0)
-                        goodguys[i].GetComponent<Character>().confidence = 0;
-                    goodguys[i].GetComponent<Character>().bravery = bestGoodBrave[i % bestGoodBrave.Count] + Random.Range(-0.5f, 0.5f);
-                    if (goodguys[i].GetComponent<Character>().bravery > 1)
-                        goodguys[i].GetComponent<Character>().bravery = 1;
-                    if (goodguys[i].GetComponent<Character>().bravery < 0)
-                        goodguys[i].GetComponent<Character>().bravery = 0;
-                    goodguys[i].GetComponent<Character>().currentAmmo = goodguys[i].GetComponent<Character>().maxAmmo;
-                    goodguys[i].GetComponent<Character>().InitializeState(CurrentState.Wander);
-                }
-                else
-                {
-                    deadgoodguys[i - goodguys.Length].transform.position = deadgoodguys[i - goodguys.Length].GetComponent<Character>().initialPos;
-                    deadgoodguys[i - goodguys.Length].tag = "goodguy";
-                    deadgoodguys[i - goodguys.Length].GetComponent<Character>().target = null;
-                    deadgoodguys[i - goodguys.Length].GetComponent<Character>().confidence = bestGoodConf[i % bestGoodConf.Count] + Random.Range(-0.5f, 0.5f);
-                    if (deadgoodguys[i - goodguys.Length].GetComponent<Character>().confidence > 1)
-                        deadgoodguys[i - goodguys.Length].GetComponent<Character>().confidence = 1;
-                    if (deadgoodguys[i - goodguys.Length].GetComponent<Character>().confidence < 0)
-                        deadgoodguys[i - goodguys.Length].GetComponent<Character>().confidence = 0;
-                    deadgoodguys[i - goodguys.Length].GetComponent<Character>().bravery = bestGoodBrave[i % bestGoodBrave.Count] + Random.Range(-0.5f, 0.5f);
-                    if (deadgoodguys[i - goodguys.Length].GetComponent<Character>().bravery > 1)
-                        deadgoodguys[i - goodguys.Length].GetComponent<Character>().bravery = 1;
-                    if (deadgoodguys[i - goodguys.Length].GetComponent<Character>().bravery < 0)
-                        deadgoodguys[i - goodguys.Length].GetComponent<Character>().bravery = 0;
-                    deadgoodguys[i - goodguys.Length].GetComponent<Character>().currentAmmo = deadgoodguys[i - goodguys.Length].GetComponent<Character>().maxAmmo;
-                    deadgoodguys[i - goodguys.Length].GetComponent<Character>().InitializeState(CurrentState.Wander);
-                }
+                tp.CheckIn(chroms[i], fitness[i]);
             }
 
-            for (int i = 0; i < badguys.Length + deadbadguys.Length; i++)
-            {
-                if (i < badguys.Length)
-                {
-                    badguys[i].transform.position = badguys[i].GetComponent<Character>().initialPos;
-                    badguys[i].GetComponent<Character>().target = null;
-                    badguys[i].tag = "badguy";
-                    badguys[i].GetComponent<Character>().confidence = bestBadConf[i % bestBadConf.Count] + Random.Range(-0.5f, 0.5f);
-                    if (badguys[i].GetComponent<Character>().confidence > 1)
-                        badguys[i].GetComponent<Character>().confidence = 1;
-                    if (badguys[i].GetComponent<Character>().confidence < 0)
-                        badguys[i].GetComponent<Character>().confidence = 0;
-                    badguys[i].GetComponent<Character>().bravery = bestBadBrave[i % bestBadBrave.Count] + Random.Range(-0.5f, 0.5f);
-                    if (badguys[i].GetComponent<Character>().bravery > 1)
-                        badguys[i].GetComponent<Character>().bravery = 1;
-                    if (badguys[i].GetComponent<Character>().bravery < 0)
-                        badguys[i].GetComponent<Character>().bravery = 0;
-                    badguys[i].GetComponent<Character>().currentAmmo = badguys[i].GetComponent<Character>().maxAmmo;
-                    badguys[i].GetComponent<Character>().InitializeState(CurrentState.Wander);
-                }
-                else
-                {
-                    deadbadguys[i - badguys.Length].transform.position = deadbadguys[i - badguys.Length].GetComponent<Character>().initialPos;
-                    deadbadguys[i - badguys.Length].tag = "badguy";
-                    deadbadguys[i - badguys.Length].GetComponent<Character>().target = null;
-                    deadbadguys[i - badguys.Length].GetComponent<Character>().confidence = bestBadConf[i % bestBadConf.Count] + Random.Range(-0.5f, 0.5f);
-                    if (deadbadguys[i - badguys.Length].GetComponent<Character>().confidence > 1)
-                        deadbadguys[i - badguys.Length].GetComponent<Character>().confidence = 1;
-                    if (deadbadguys[i - badguys.Length].GetComponent<Character>().confidence < 0)
-                        deadbadguys[i - badguys.Length].GetComponent<Character>().confidence = 0;
-                    deadbadguys[i - badguys.Length].GetComponent<Character>().bravery = bestBadBrave[i % bestBadBrave.Count] + Random.Range(-0.5f, 0.5f);
-                    if (deadbadguys[i - badguys.Length].GetComponent<Character>().bravery > 1)
-                        deadbadguys[i - badguys.Length].GetComponent<Character>().bravery = 1;
-                    if (deadbadguys[i - badguys.Length].GetComponent<Character>().bravery < 0)
-                        deadbadguys[i - badguys.Length].GetComponent<Character>().bravery = 0;
-                    deadbadguys[i - badguys.Length].GetComponent<Character>().currentAmmo = deadbadguys[i - badguys.Length].GetComponent<Character>().maxAmmo;
-                    deadbadguys[i - badguys.Length].GetComponent<Character>().InitializeState(CurrentState.Wander);
-                }
-            }
-        }
+        // Save the new population for next time
+        // This would be done at the end of each "round"
+        tp.WritePop();
+
+        tp.DisplayPop(1);	// Display new population on the Console for grins
     }
 }
