@@ -30,6 +30,9 @@ public class Character : MonoBehaviour {
     public int timeSurvived = 0;
     public int kills = 0;
 
+    public bool friends;
+    public float mentalFortitude;
+
     #region WEAPON_ATTRIBUTES
 
     public int maxAmmo = 30;
@@ -48,6 +51,7 @@ public class Character : MonoBehaviour {
     public bool enemiesShooting = false;
 
     public string enemyTag = "goodguy";
+    public string friendTag = "badguy";
 
     private Vector3 coneLeft;
     private Vector3 coneRight;
@@ -66,6 +70,7 @@ public class Character : MonoBehaviour {
     #endregion
 
     public GameObject target;
+    public GameObject friend;
 
     #region NAVIGATION
 
@@ -196,7 +201,8 @@ public class Character : MonoBehaviour {
                 }
                 if(target == null)
                 {
-                    InitializeState(CurrentState.Wander);
+                    friend = FindFriend();
+                    InitializeState(CurrentState.Pursue);
                     break;
                 }
                 if ((target.transform.position - transform.position).magnitude >= vision)
@@ -382,8 +388,7 @@ public class Character : MonoBehaviour {
 
 
             // Otherwise the further they get the closer to 0% chance of hitting them, linearly.  Linear should be fine for our purpose.
-            if(maxAccuracy 
-                * Mathf.Lerp(1, 0, (dist - accurateDist) / (innacurateDist - accurateDist)) > rand)
+            if(maxAccuracy * Mathf.Lerp(1, 0, (dist - accurateDist) / (innacurateDist - accurateDist)) > rand)
             {
                 target.GetComponent<Character>().health--;
                 if (hit.transform.GetComponent<Character>().health <= 0)
@@ -416,6 +421,22 @@ public class Character : MonoBehaviour {
         //}
     }
 
+    private GameObject FindFriend()
+    {
+        GameObject[] friends = GameObject.FindGameObjectsWithTag(friendTag);
+
+        for (int i = 0; i < friends.Length; i++)
+        {
+            Vector3 betweenVec = friends[i].transform.position - transform.position;
+            if (betweenVec.magnitude <= vision && Vector3.Dot(betweenVec, transform.forward) > 0)
+            {
+                return friends[i];
+            }
+        }
+
+        return null;
+    }    
+
     private GameObject FindTarget()
     {
         GameObject[] enemies = GameObject.FindGameObjectsWithTag(enemyTag);
@@ -431,9 +452,6 @@ public class Character : MonoBehaviour {
             }
         }
 
-        return null;
-        
-    }
-
-    
+        return null;        
+    }    
 }

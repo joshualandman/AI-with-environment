@@ -23,3 +23,15 @@ C:\Users\Luna\Programming Projects\Unity\ArtificialIntelligenceProject\Temp\bin\
 C:\Users\Luna\Programming Projects\Unity\ArtificialIntelligenceProject\obj\Debug\Assembly-CSharp-firstpass-vs.csprojResolveAssemblyReference.cache
 C:\Users\Luna\Programming Projects\Unity\ArtificialIntelligenceProject\obj\Debug\Assembly-CSharp-firstpass.dll
 C:\Users\Luna\Programming Projects\Unity\ArtificialIntelligenceProject\obj\Debug\Assembly-CSharp-firstpass.pdb
+D:\AI-with-environment-master\AI-with-environment-master\Temp\bin\Debug\Assembly-CSharp-firstpass.dll
+D:\AI-with-environment-master\AI-with-environment-master\Temp\bin\Debug\Assembly-CSharp-firstpass.pdb
+D:\AI-with-environment-master\AI-with-environment-master\Temp\bin\Debug\UnityEditor.dll
+D:\AI-with-environment-master\AI-with-environment-master\Temp\bin\Debug\UnityEngine.dll
+D:\AI-with-environment-master\AI-with-environment-master\Temp\bin\Debug\UnityEngine.UI.dll
+D:\AI-with-environment-master\AI-with-environment-master\Temp\bin\Debug\Mono.Cecil.dll
+D:\AI-with-environment-master\AI-with-environment-master\Temp\bin\Debug\nunit.framework.dll
+D:\AI-with-environment-master\AI-with-environment-master\Temp\bin\Debug\Unity.DataContract.dll
+D:\AI-with-environment-master\AI-with-environment-master\Temp\bin\Debug\ICSharpCode.NRefactory.dll
+D:\AI-with-environment-master\AI-with-environment-master\obj\Debug\Assembly-CSharp-firstpass-vs.csprojResolveAssemblyReference.cache
+D:\AI-with-environment-master\AI-with-environment-master\obj\Debug\Assembly-CSharp-firstpass.dll
+D:\AI-with-environment-master\AI-with-environment-master\obj\Debug\Assembly-CSharp-firstpass.pdb
